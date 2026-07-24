@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://adrunner.example/schemas/ad-runner-v1.schema.json",
+  "title": "Ad Runner v1 Manifest",
+  "type": "object",
+  "required": ["spec", "site", "version", "mode", "settings", "networks", "units", "placements"],
+  "properties": {
+    "spec": { "const": "ad-runner/1" },
+    "site": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "minLength": 1 },
+    "mode": { "enum": ["aesthetic", "maximum-conversion", "maximum-clicks", "maximum-profit"] },
+    "settings": {
+      "type": "object",
+      "required": ["enabled", "lazy_load", "collapse_empty_slots", "debug"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "lazy_load": { "type": "boolean" },
+        "collapse_empty_slots": { "type": "boolean" },
+        "debug": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "networks": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/network" }
+    },
+    "units": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/unit" }
+    },
+    "placements": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/placement" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "loader": {
+      "type": "object",
+      "properties": {
+        "src": { "type": "string" },
+        "async": { "type": "boolean" },
+        "load_once": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "network": {
+      "type": "object",
+      "required": ["adapter", "enabled"],
+      "properties": {
+        "adapter": { "type": "string" },
+        "enabled": { "type": "boolean" },
+        "loader": { "$ref": "#/$defs/loader" }
+      },
+      "additionalProperties": false
+    },
+    "unit": {
+      "type": "object",
+      "required": ["network"],
+      "properties": {
+        "network": { "type": "string" },
+        "format": { "type": "string" },
+        "markup": { "type": "string" },
+        "execute": { "type": "string" },
+        "style": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "placement": {
+      "type": "object",
+      "required": ["id", "anchor", "devices", "priority", "enabled"],
+      "oneOf": [{ "required": ["unit"] }, { "required": ["units"] }],
+      "properties": {
+        "id": { "type": "string" },
+        "anchor": { "type": "string" },
+        "selector": { "type": "string" },
+        "insertion": { "enum": ["inside", "before", "after", "prepend", "append", "replace"] },
+        "unit": { "type": "string" },
+        "units": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "devices": { "type": "array", "items": { "enum": ["all", "desktop", "mobile"] } },
+        "priority": { "type": "number" },
+        "enabled": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  }
+}
