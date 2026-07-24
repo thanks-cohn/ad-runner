@@ -1,2 +1,2 @@
-import { rawScriptAdapter } from "./raw-script.js";
-export const exoclickAdapter = { ...rawScriptAdapter, id: "exoclick" };
+import type { AdNetworkAdapter } from "./registry.js"; import { externalTagAdapter } from "./external-tag.js"; const loaded=new Set<string>();
+export const exoclickAdapter:AdNetworkAdapter={id:"exoclick",async load(network,context){const src=network.loader?.src; if(src&&!loaded.has(src)){loaded.add(src); context.emit("network-loaded",{network:"exoclick",loader:src});}},mount:externalTagAdapter.mount,destroy:externalTagAdapter.destroy};

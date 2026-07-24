@@ -1,12 +1,20 @@
 {
   "name": "ad-runner",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "test": "npm run build && node --test tests/*.test.mjs"
+  "bin": {
+    "ad-runner": "dist/cli/ad-runner.js"
   },
+  "scripts": {
+    "dev": "node dist/cli/ad-runner.js serve",
+    "init": "node dist/cli/ad-runner.js init",
+    "build": "tsc -p tsconfig.json && node scripts/build-browser.mjs && node scripts/create-template.mjs",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "test:e2e": "npm run build && node --test tests/e2e.test.mjs",
+    "demo": "node dist/cli/ad-runner.js publish examples/ad-runner-template.xlsx && node dist/cli/ad-runner.js serve"
+  },
+  "dependencies": {},
   "devDependencies": {
     "typescript": "^5.5.0"
   }

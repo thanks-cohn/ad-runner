@@ -1,45 +1,16 @@
-import type { AdRunnerManifest, DeviceTarget, OptimizationMode, Placement } from "../specification/types.js";
-import type { ParsedBlocks, SpreadsheetRow } from "./parser.js";
-import { parseRows } from "./parser.js";
-import { validateManifest } from "./validator.js";
-
-const bool = (value: string | undefined, fallback = true): boolean => value === undefined ? fallback : ["true", "1", "yes", "on"].includes(value.toLowerCase());
-const list = (value: string | undefined, fallback: string[]): string[] => value ? value.split(",").map((item) => item.trim()).filter(Boolean) : fallback;
-
-export function compileRows(rows: SpreadsheetRow[], mode: OptimizationMode = "maximum-profit", version = "dev"): AdRunnerManifest {
-  return compileBlocks(parseRows(rows, mode), mode, version);
-}
-
-export function compileBlocks(blocks: ParsedBlocks, mode: OptimizationMode, version: string): AdRunnerManifest {
-  const site = blocks.SITE?.site ?? {};
-  const manifest: AdRunnerManifest = {
-    spec: "ad-runner/1",
-    site: site.site_id,
-    version,
-    mode: (site.default_mode as OptimizationMode) || mode,
-    settings: {
-      enabled: bool(site.enabled, true),
-      lazy_load: bool(site.lazy_load, true),
-      collapse_empty_slots: bool(site.collapse_empty_slots, true),
-      debug: bool(site.debug, false)
-    },
-    networks: {},
-    units: {},
-    placements: []
-  };
-  for (const [id, network] of Object.entries(blocks.NETWORK ?? {})) {
-    manifest.networks[id] = { adapter: network.adapter ?? id, enabled: bool(network.enabled, true), loader: { src: network.loader_src, async: bool(network.loader_async, true), load_once: bool(network.load_once, true) } };
-  }
-  for (const [id, unit] of Object.entries(blocks.UNIT ?? {})) {
-    manifest.units[id] = { network: unit.network, format: unit.format, markup: unit.markup, execute: unit.execute, style: unit.style };
-  }
-  for (const [id, placement] of Object.entries(blocks.PLACEMENT ?? {})) {
-    const compiled: Placement = { id, anchor: placement.anchor, selector: placement.selector, insertion: placement.insertion as Placement["insertion"] | undefined, devices: list(placement.devices, ["all"]) as DeviceTarget[], priority: Number(placement.priority ?? 0), enabled: bool(placement.enabled, true) };
-    const units = list(placement.units, []);
-    if (units.length) compiled.units = units;
-    else compiled.unit = placement.unit;
-    manifest.placements.push(compiled);
-  }
-  validateManifest(manifest);
-  return manifest;
-}
+import { createHash } from "node:crypto"; import { readWorkbookFile, utils as XLSXUtils } from "./simple-xlsx.js"; import type { AdRunnerManifest, DeviceTarget, OptimizationMode, Placement, PlacementCandidate } from "../specification/types.js"; import type { ParsedBlocks, SpreadsheetRow } from "./parser.js"; import { normalizeRows, parseRows } from "./parser.js"; import { assertMode, validateManifest } from "./validator.js";
+export interface SheetInput { sheetName:string; rows:SpreadsheetRow[]; hash:string; changed:boolean; }
+export interface WorkbookCompilationInput { path:string; sheets:SheetInput[]; reservedSheets:string[]; }
+export interface SiteCompilationResult { sheetName:string; site?:string; manifest?:AdRunnerManifest; errors:string[]; warnings:string[]; hash:string; changed:boolean; }
+export interface WorkbookCompilationResult { input:WorkbookCompilationInput; sites:SiteCompilationResult[]; valid:boolean; compiledAt:string; }
+const RESERVED=new Set(["_README","_TEMPLATE","_GLOBAL"]); const bool=(v:string|undefined,f=true)=>v===undefined?f:["true","1","yes","on"].includes(String(v).toLowerCase()); const list=(v:string|undefined,f:string[]=[])=>v?String(v).split(",").map(s=>s.trim()).filter(Boolean):f; const num=(v:string|undefined,f:number)=>v===undefined||v===""?f:Number(v);
+export function compileRows(rows: SpreadsheetRow[], mode: OptimizationMode = "maximum-revenue", version="dev"): AdRunnerManifest { const r=compileSheet("sheet", rows, mode, version); if(r.errors.length) throw new Error(r.errors.join("\n")); return r.manifest!; }
+export function compileSheet(sheetName:string, rows:SpreadsheetRow[], requestedMode?:OptimizationMode, version="dev"): SiteCompilationResult { const warnings:string[]=[]; const hash=createHash("sha256").update(normalizeRows(rows)).digest("hex").slice(0,12); try { const raw=parseRows(rows, requestedMode??"maximum-revenue"); const siteBlock=raw.SITE?.site??{}; const selected=String(siteBlock.default_mode || requestedMode || "maximum-revenue"); assertMode(selected); const mode=selected as OptimizationMode; const blocks=parseRows(rows, mode); const site=blocks.SITE?.site??{}; const manifest:AdRunnerManifest={spec:"ad-runner/1",site:site.site_id||sheetName,version,mode,settings:{enabled:bool(site.enabled,true),lazy_load:bool(site.lazy_load,true),collapse_empty_slots:bool(site.collapse_empty_slots,true),debug:bool(site.debug,false),allow_unsafe_scripts:bool(site.allow_unsafe_scripts,false),observe_dom:bool(site.observe_dom,true),cors_origins:list(site.cors_origins,[])},networks:{},units:{},placements:[],warnings,candidateOrder:{}};
+ for(const [id,n] of Object.entries(blocks.NETWORK??{})) manifest.networks[id]={adapter:n.adapter??id,enabled:bool(n.enabled,true),loader:{src:n.loader_src,async:bool(n.loader_async,true),load_once:bool(n.load_once,true),html:n.loader_html,success_message:n.success_message,failure_message:n.failure_message,timeout_ms:num(n.timeout_ms,1500)},allowed_origins:list(n.allowed_origins,[])};
+ for(const [id,u] of Object.entries(blocks.UNIT??{})){ const clean:any={}; for(const [k,v] of Object.entries(u)) { if(k.includes("secret")&&!k.endsWith("_ref")) continue; clean[k]=v; } manifest.units[id]={...clean,network:u.network,format:u.format,width:num(u.width,0)||undefined,height:num(u.height,0)||undefined,target_blank:bool(u.target_blank,true),simulated_delay_ms:num(u.simulated_delay_ms,0)||undefined} as any; }
+ for(const [id,p] of Object.entries(blocks.PLACEMENT??{})){ const candidates=parseCandidates(id,p,warnings); const placement:Placement={id,anchor:p.anchor,selector:p.selector,insertion:p.insertion as Placement["insertion"]|undefined,devices:list(p.devices,["all"]) as DeviceTarget[],priority:num(p.priority,0),enabled:bool(p.enabled,true),candidates}; manifest.placements.push(placement); manifest.candidateOrder![id]=candidates.map(c=>c.unit); }
+ validateManifest(manifest); return {sheetName,site:manifest.site,manifest,errors:[],warnings,hash,changed:true}; } catch(e){ return {sheetName,errors:[String((e as Error).message)],warnings,hash,changed:true}; } }
+function parseCandidates(id:string,p:Record<string,string>,warnings:string[]):PlacementCandidate[]{ let raw=p.candidates||p.units||p.unit||""; if(!p.candidates && (p.unit||p.units)) warnings.push(`placement ${id} uses legacy unit/units; use candidates instead.`); const units=list(raw,[]); return units.map((unit,idx)=>({unit,priority:num(p[`${unit}_priority`]??p[`candidate_${idx+1}_priority`],100-idx),timeout_ms:num(p[`${unit}_timeout_ms`]??p[`candidate_${idx+1}_timeout_ms`]??p.timeout_ms,1500),guaranteed:bool(p[`${unit}_guaranteed`]??p[`candidate_${idx+1}_guaranteed`],false)})).sort((a,b)=>b.priority-a.priority); }
+export async function readWorkbook(path:string):Promise<WorkbookCompilationInput>{ const wb=await readWorkbookFile(path); const sheets:SheetInput[]=[]; const reservedSheets:string[]=[]; for(const name of wb.SheetNames){ if(RESERVED.has(name)){reservedSheets.push(name); continue;} const raw:any[]=XLSXUtils.sheet_to_json(wb.Sheets[name],{defval:""}); const rows=raw.map((r:any,i:number)=>({rowNumber:i+2,block_type:String(r.block_type??""),block_id:String(r.block_id??""),field:String(r.field??""),value:String(r.value??""),aesthetic:String(r.aesthetic??""),maximum_visibility:String(r.maximum_visibility??""),maximum_clicks:String(r.maximum_clicks??""),maximum_revenue:String(r.maximum_revenue??""),notes:String(r.notes??"")})); const hash=createHash("sha256").update(normalizeRows(rows)).digest("hex").slice(0,12); sheets.push({sheetName:name,rows,hash,changed:true}); } return {path,sheets,reservedSheets}; }
+export async function compileWorkbook(path:string):Promise<WorkbookCompilationResult>{ const input=await readWorkbook(path); const sites=input.sheets.map(s=>compileSheet(s.sheetName,s.rows,undefined,s.hash)); return {input,sites,valid:sites.every(s=>!s.errors.length),compiledAt:new Date().toISOString()}; }
+export function compileBlocks(blocks: ParsedBlocks, mode: OptimizationMode, version: string): AdRunnerManifest { const rows:SpreadsheetRow[]=[]; for(const [bt,objs] of Object.entries(blocks)) for(const [bid,fields] of Object.entries(objs)) for(const [field,value] of Object.entries(fields)) rows.push({block_type:bt,block_id:bid,field,value,aesthetic:"on",maximum_visibility:"on",maximum_clicks:"on",maximum_revenue:"on"}); return compileRows(rows,mode,version); }
