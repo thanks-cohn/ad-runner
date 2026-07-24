@@ -105,3 +105,13 @@ Run `npm test` and `npm run test:e2e`.
 
 ## Current Limitations
 The control panel is intentionally small, workbook upload expects raw XLSX POST data, and optimization is transparent manual ordering plus optional estimates. ExoClick defaults to filled shortly after iframe mount while preserving explicit success and failure messages when configured.
+
+## Iterative Partner Model
+
+Ad Runner uses the Iterative Partner Model to distribute advertisement opportunities among people, accounts, and networks through one understandable routing system.
+
+Assign each partner a share. Ad Runner selects whose opportunity is due, then iterates through that partner’s networks until one fills. One operator can use the same model to iterate through several advertising companies and accounts. Each partner can use their own advertising account, allowing revenue to be credited directly by the network.
+
+**Core promise:** One slot. Many partners. Many networks. One fair route to a filled advertisement.
+
+See `docs/ITERATIVE_PARTNER_MODEL.md`, `docs/TERMINOLOGY.md`, and `docs/ITERATIVE_PARTNER_EXAMPLES.md`.
