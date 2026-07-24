@@ -1,3 +1,2 @@
-export function dispatchAdRunnerEvent(name: string, detail: unknown): void {
-  window.dispatchEvent(new CustomEvent(`adrunner:${name}`, { detail }));
-}
+export const EVENT_NAMES=["adrunner:ready","adrunner:slot-requested","adrunner:candidate-started","adrunner:candidate-filled","adrunner:candidate-no-fill","adrunner:candidate-timeout","adrunner:candidate-error","adrunner:fallback-used","adrunner:slot-filled","adrunner:slot-collapsed","adrunner:slot-visible","adrunner:slot-clicked","adrunner:network-loaded","adrunner:missing-slot","adrunner:manifest-error"];
+export function dispatchAdRunnerEvent(name:string, detail:unknown):void{ const full=name.startsWith("adrunner:")?name:`adrunner:${name}`; window.dispatchEvent(new CustomEvent(full,{detail})); }

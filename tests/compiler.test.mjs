@@ -1,16 +1,6 @@
-import assert from "node:assert/strict";
-import test from "node:test";
-import { compileRows } from "../dist/packages/compiler/compiler.js";
-
-test("compiles spreadsheet rows into a validated manifest", () => {
-  const manifest = compileRows([
-    { block_type: "SITE", block_id: "site", field: "site_id", value: "animeplex.lol", aesthetic: "on", conversion: "on", clicks: "on", profit: "on" },
-    { block_type: "NETWORK", block_id: "exoclick", field: "adapter", value: "exoclick", aesthetic: "on", conversion: "on", clicks: "on", profit: "on" },
-    { block_type: "UNIT", block_id: "exo_top", field: "network", value: "exoclick", aesthetic: "on", conversion: "on", clicks: "on", profit: "on" },
-    { block_type: "PLACEMENT", block_id: "main_top", field: "anchor", value: "top", aesthetic: "on", conversion: "on", clicks: "on", profit: "on" },
-    { block_type: "PLACEMENT", block_id: "main_top", field: "unit", value: "exo_top", aesthetic: "on", conversion: "on", clicks: "on", profit: "on" }
-  ], "maximum-profit", "42");
-
-  assert.equal(manifest.site, "animeplex.lol");
-  assert.equal(manifest.placements[0]?.anchor, "top");
-});
+import test from 'node:test'; import assert from 'node:assert/strict'; import { compileRows, compileWorkbook } from '../dist/packages/compiler/compiler.js';
+const row=(bt,id,field,value)=>({block_type:bt,block_id:id,field,value,aesthetic:'on',maximum_visibility:'on',maximum_clicks:'on',maximum_revenue:'on'});
+test('compiles candidates and new modes',()=>{const m=compileRows([row('SITE','site','site_id','animeplex.lol'),row('SITE','site','default_mode','maximum-revenue'),row('NETWORK','sim','adapter','simulated'),row('UNIT','u1','network','sim'),row('UNIT','u1','simulated_outcome','filled'),row('PLACEMENT','p1','anchor','top'),row('PLACEMENT','p1','candidates','u1')],'maximum-revenue','42'); assert.equal(m.mode,'maximum-revenue'); assert.deepEqual(m.placements[0].candidates[0].unit,'u1');});
+test('rejects obsolete modes',()=>{assert.throws(()=>compileRows([row('SITE','site','site_id','x'),row('SITE','site','default_mode','maximum-profit')]),/maximum-profit is no longer valid/);});
+test('workbook reads multiple sheets and ignores reserved sheets',async()=>{const r=await compileWorkbook('examples/ad-runner-template.xlsx'); assert.equal(r.input.reservedSheets.includes('_README'),true); assert.ok(r.sites.length>=3); assert.equal(r.valid,true);});
+test('legacy units accepted with warnings and candidate output',()=>{const m=compileRows([row('SITE','site','site_id','x'),row('NETWORK','sim','adapter','simulated'),row('UNIT','u1','network','sim'),row('PLACEMENT','p','anchor','top'),row('PLACEMENT','p','units','u1')]); assert.equal(m.placements[0].candidates[0].unit,'u1'); assert.match(m.warnings[0],/legacy/);});

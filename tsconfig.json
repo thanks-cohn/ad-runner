@@ -9,5 +9,10 @@
     "rootDir": ".",
     "skipLibCheck": true
   },
-  "include": ["packages/**/*.ts", "server/**/*.ts"]
+  "include": [
+    "packages/**/*.ts",
+    "server/**/*.ts",
+    "cli/**/*.ts",
+    "globals.d.ts"
+  ]
 }
