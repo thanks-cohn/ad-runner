@@ -16,7 +16,44 @@ npm run init
 npm run dev
 ```
 
-Open `http://localhost:4178/admin`, validate the workbook, publish a site, then open `http://localhost:4178/demo`.
+Open `http://localhost:4178/admin`, validate the workbook, publish a site, then open `http://localhost:4178/demo`. For a desktop workflow, run `python3 ad_runner_gui.py` after building.
+
+
+## Python ExoClick Control Panel
+Ad Runner v0.3 includes a no-dependency Tkinter desktop control panel:
+
+```bash
+npm install
+npm run build
+python3 ad_runner_gui.py
+```
+
+The GUI edits the existing JSON-backed `.xlsx` workbook format used by `packages/compiler/simple-xlsx.ts`; it does not replace the compiler, publisher, router, CLI, server, or workbook structure. Use the workbook selector to open `data/workbooks/ad-runner.xlsx` or another Ad Runner workbook. Select or type a website ID such as `animeplex.lol`, choose an optimization mode, select `ExoClick`, choose a standard ad name and size, paste the complete ExoClick tag, and click **Save / Update Ad**. Saving creates missing site, network, unit, and placement rows with stable slug IDs and updates the same ad on repeat saves instead of duplicating rows.
+
+The control panel provides buttons for **Initialize Workbook**, **Validate**, **Publish**, **Status**, **Build Ad Runner**, **Start Server**, **Stop Server**, **Open Admin**, **Open Demo**, and **Copy Website Code**. Node commands are streamed into the activity log. If `dist/cli/ad-runner.js` is missing, click **Build Ad Runner** to run `npm install && npm run build`; the GUI does not install packages unless you press that button. **Start Server** launches `node dist/cli/ad-runner.js serve`, and **Stop Server** terminates only the server process started by the GUI.
+
+A typical ExoClick setup flow is:
+
+1. Run `npm install` and `npm run build`.
+2. Run `python3 ad_runner_gui.py`.
+3. Select `animeplex.lol`.
+4. Select `Top Banner` and `728x90`.
+5. Paste the complete ExoClick ad tag.
+6. Click **Save / Update Ad**, **Validate**, **Publish**, and **Start Server**.
+7. Copy the displayed integration code into your site, for example:
+
+```html
+<script
+  src="http://localhost:4178/v1/ad-runner.min.js"
+  data-ad-runner-site="animeplex.lol"
+  data-ad-runner-base="http://localhost:4178"
+  defer>
+</script>
+
+<div data-ad-runner-slot="top"></div>
+```
+
+ExoClick markup is stored exactly as pasted in the workbook. At runtime it is wrapped in a complete iframe `srcdoc` document and executed only inside a sandboxed iframe, never in the publisher page.
 
 ## Workbook Structure
 Columns are exactly `block_type, block_id, field, value, aesthetic, maximum_visibility, maximum_clicks, maximum_revenue, notes`. Reserved sheets `_README`, `_TEMPLATE`, and `_GLOBAL` are ignored.
@@ -67,4 +104,4 @@ Implement `load`, `mount`, optional `refresh`, and optional `destroy`, then regi
 Run `npm test` and `npm run test:e2e`.
 
 ## Current Limitations
-The control panel is intentionally small, workbook upload expects raw XLSX POST data, optimization is transparent manual ordering plus optional estimates, and external tag fill confirmation requires explicit signals.
+The control panel is intentionally small, workbook upload expects raw XLSX POST data, and optimization is transparent manual ordering plus optional estimates. ExoClick defaults to filled shortly after iframe mount while preserving explicit success and failure messages when configured.
