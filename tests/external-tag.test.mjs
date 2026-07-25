@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { externalTagAdapter } from '../dist/packages/adapters/external-tag.js';
+import { externalTagAdapter, iframeDocument } from '../dist/packages/adapters/external-tag.js';
 import { exoclickAdapter } from '../dist/packages/adapters/exoclick.js';
 
 function installDom() {
@@ -31,6 +31,14 @@ function installDom() {
 }
 
 const ctx = { manifest: { networks: { exoclick: { adapter: 'exoclick', enabled: true }, ext: { adapter: 'external-tag', enabled: true } } }, site: 's', emit(){} };
+
+test('partner head markup precedes untouched ad scripts in iframe document', () => {
+  const head='<meta http-equiv="Delegate-CH" content="Sec-CH-UA https://s.pemsrv.com">';
+  const ad='<script async src="https://a.pemsrv.com/ad-provider.js"></script>';
+  const document=iframeDocument(ad,head);
+  assert.ok(document.indexOf(head)<document.indexOf(ad));
+  assert.equal(document.match(/ad-provider\.js/g)?.length,1);
+});
 
 test('external tag preserves scripts in sandboxed iframe srcdoc', async () => {
   const { Container } = installDom();

@@ -6,8 +6,8 @@ function numeric(unit: AdUnit, key: string, fallback: number): number {
   return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
-function iframeDocument(markup: string): string {
-  return `<!doctype html><html><head><meta charset="utf-8"><base target="_blank"></head><body>${markup}</body></html>`;
+export function iframeDocument(markup: string, headMarkup = ""): string {
+  return `<!doctype html><html><head><meta charset="utf-8"><base target="_blank">${headMarkup}</head><body>${markup}</body></html>`;
 }
 
 export const externalTagAdapter: AdNetworkAdapter = {
@@ -62,7 +62,7 @@ export const externalTagAdapter: AdNetworkAdapter = {
       signal.addEventListener("abort", onAbort, { once: true });
       iframe.addEventListener("load", onLoad);
       window.addEventListener("message", onMessage);
-      iframe.srcdoc = iframeDocument(String(unit.markup ?? unit.html ?? ""));
+      iframe.srcdoc = iframeDocument(String(unit.markup ?? unit.html ?? ""), String(unit.head_markup ?? ""));
       if (!success && !fail && !assumeFilled) finish({ outcome: "unknown", reason: "external tag has no reliable fill signal", renderedAt: Date.now() });
     });
   },

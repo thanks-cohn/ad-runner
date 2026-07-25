@@ -154,7 +154,7 @@ class App:
             elif lab=="Size": ttk.Combobox(frm,textvariable=var,values=SIZES).grid(row=i,column=1,columnspan=2,sticky="ew")
             else: ttk.Entry(frm,textvariable=var).grid(row=i,column=1,columnspan=2,sticky="ew")
         ttk.Label(frm,text="ExoClick code").grid(row=7,column=0,sticky="nw"); self.markup=ScrolledText(frm,height=8); self.markup.grid(row=7,column=1,columnspan=2,sticky="nsew")
-        btns=[("Initialize Workbook",self.init_wb),("Save / Update Ad",self.save_ad),("Validate",lambda:self.cmd(["validate",self.workbook.get()])),("Publish",lambda:self.cmd(["publish",self.workbook.get()])),("Status",lambda:self.cmd(["status"])),("Build Ad Runner",lambda:self.cmd_shell("npm install && npm run build")),("Start Server",self.start_server),("Stop Server",self.stop_server),("Open Admin",lambda:webbrowser.open("http://localhost:4178/admin")),("Open Demo",lambda:webbrowser.open("http://localhost:4178/demo")),("Copy Website Code",self.copy_code)]
+        btns=[("Initialize Workbook",self.init_wb),("Import Simple Partner CSV",self.import_simple_csv),("Save / Update Ad",self.save_ad),("Validate",lambda:self.cmd(["validate",self.workbook.get()])),("Publish",lambda:self.cmd(["publish",self.workbook.get()])),("Status",lambda:self.cmd(["status"])),("Build Ad Runner",lambda:self.cmd_shell("npm install && npm run build")),("Start Server",self.start_server),("Stop Server",self.stop_server),("Open Admin",lambda:webbrowser.open("http://localhost:4178/admin")),("Open Demo",lambda:webbrowser.open("http://localhost:4178/demo")),("Copy Website Code",self.copy_code)]
         bar=ttk.Frame(frm); bar.grid(row=8,column=0,columnspan=3,sticky="ew")
         for i,(t,c) in enumerate(btns): ttk.Button(bar,text=t,command=c).grid(row=i//4,column=i%4,sticky="ew")
         ttk.Label(frm,text="Website code / activity log").grid(row=9,column=0,sticky="nw"); self.log=ScrolledText(frm,height=12); self.log.grid(row=9,column=1,columnspan=2,sticky="nsew")
@@ -171,6 +171,29 @@ class App:
         except Exception as e: self.write(f"Could not load sites: {e}\n")
     def write(self,t): self.log.insert("end",t); self.log.see("end")
     def init_wb(self): self.cmd(["init"])
+    def import_simple_csv(self):
+        csv_path=filedialog.askopenfilename(title="Select Simple Partner CSV",initialdir="data/imports",filetypes=[("CSV files","*.csv"),("All files","*")])
+        if not csv_path: return
+        try:
+            from simple_partner_csv import parse_simple_csv, import_plan, import_into_workbook
+            blocks=parse_simple_csv(csv_path); plan=import_plan(blocks,load_workbook(self.workbook.get()))
+        except Exception as e:
+            messagebox.showerror("CSV import failed",str(e)); self.write(f"ERROR: {e}\n"); return
+        win=tk.Toplevel(self.root); win.title("Simple Partner CSV Import Preview"); win.geometry("850x600")
+        ttk.Label(win,text="Review every owner block before importing:").pack(anchor="w",padx=8,pady=6)
+        preview=ScrolledText(win,wrap="word"); preview.pack(fill="both",expand=True,padx=8); preview.insert("1.0",plan); preview.configure(state="disabled")
+        bar=ttk.Frame(win); bar.pack(fill="x",padx=8,pady=8)
+        invalid=any(b.errors for b in blocks)
+        def commit_import():
+            active=sum(1 for b in blocks if b.enabled); ads=sum(1 for b in blocks for a in b.ads if not a.skipped)
+            if not messagebox.askyesno("Confirm Simple Partner CSV Import",f"Import/update {ads} advertisements in {active} enabled partner blocks across {len(set(b.website for b in blocks))} websites? Stale generated ads listed in the preview may be removed. Unrelated manual rows will be preserved.",parent=win): return
+            try:
+                wb=load_workbook(self.workbook.get()); summary=import_into_workbook(wb,blocks); backup=save_workbook(self.workbook.get(),wb)
+                self.write(f"Simple Partner CSV import: {summary['added']} added, {summary['updated']} updated, {summary['removed']} removed; backup={backup or 'not needed'}\n")
+                self.refresh_sites(); win.destroy()
+            except Exception as e: messagebox.showerror("Import failed",str(e),parent=win); self.write(f"ERROR: {e}\n")
+        ttk.Button(bar,text="Import",command=commit_import,state="disabled" if invalid else "normal").pack(side="right",padx=4)
+        ttk.Button(bar,text="Cancel",command=win.destroy).pack(side="right")
     def save_ad(self):
         try:
             wb=load_workbook(self.workbook.get()); info=add_or_update_exoclick_ad(wb,self.site.get().strip(),self.ad.get(),self.size.get(),self.anchor.get().strip(),self.markup.get("1.0","end-1c"),self.mode.get()); backup=save_workbook(self.workbook.get(),wb); code=website_code(info["site_id"],info["anchor"]); self.write((f"Saved {info['unit_id']} to {self.workbook.get()}"+(f" (backup {backup})" if backup else ""))+"\n"+code+"\n"); self.refresh_sites()
