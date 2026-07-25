@@ -115,3 +115,18 @@ Assign each partner a share. Ad Runner selects whose opportunity is due, then it
 **Core promise:** One slot. Many partners. Many networks. One fair route to a filled advertisement.
 
 See `docs/ITERATIVE_PARTNER_MODEL.md`, `docs/TERMINOLOGY.md`, and `docs/ITERATIVE_PARTNER_EXAMPLES.md`.
+
+## Simple Two-Person CSV Import
+
+`data/imports/ad-runner-two-person-config.csv` is the maintained starter template. Copy an owner block, enter its website/domain and owner name, set `Enabled` and its traffic share, and enter a human-readable Ad Traffic Name. Paste the network's complete Client Hints `<meta>` tag or tags into the Client Hints field. For every advertisement, enter its ad name and dimensions (`WIDTHxHEIGHT` or `N/A`), then paste the **complete network-provided ad code without separating it**. Load the workbook in `ad_runner_gui.py`, click **Import Simple Partner CSV**, select the template, review the per-block preview, and click **Import** once. Then click **Validate** and **Publish**.
+
+The importer maps each website to its existing canonical workbook sheet, each owner to an Iterative Partner Model lane, and each share to the lane's Share Target. Imported lanes default to `protected-share`; recognized ExoClick markup uses the `exoclick` adapter and other complete tags use `external-tag`. Client Hints remain scoped to the selected unit's sandboxed iframe head. Generated partner and unit IDs include the website, owner, traffic label, and ad name, so reimport updates the same owned rows without colliding with another partner or changing unrelated manual rows.
+
+The equivalent noninteractive workflow is:
+
+```bash
+ad-runner import-simple-csv ./data/imports/ad-runner-two-person-config.csv ./data/workbooks/ad-runner.xlsx
+ad-runner import-simple-csv ./config.csv ./workbook.xlsx --dry-run
+```
+
+After publishing and starting the server, select the website and page anchor in the GUI and click **Copy Website Code** to copy the sandboxed runtime integration snippet.

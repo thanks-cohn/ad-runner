@@ -6,4 +6,4 @@ declare module 'node:http' { const http:any; export default http; export interfa
 declare module 'xlsx' { export const utils:any; export function readFile(path:string,opts?:any):any; export function writeFile(wb:any,path:string):void; }
 declare const Buffer:any; declare const process:any;
 
-declare module 'node:child_process' { export function execFileSync(cmd:string,args?:any[],opts?:any): string; }
+declare module 'node:child_process' { export function execFileSync(cmd:string,args?:any[],opts?:any): string; export function spawnSync(cmd:string,args?:any[],opts?:any): {status:number|null}; }
